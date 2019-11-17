@@ -27,3 +27,9 @@ example:
 PDown - z,x = 0
 
 PUp - z,x = 1
+
+run:
+```
+./parser.py - open simvision.csv file
+./parser.py [FILE_NAME] - open file [FILE_NAME]
+```

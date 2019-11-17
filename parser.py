@@ -3,6 +3,7 @@
 
 """ """
 
+import os
 import sys
 import logging
 from csv2tap import JTAG_TAP
@@ -26,9 +27,11 @@ class JTAG_Parser(object):
         self.array = []
         self.tap = JTAG_TAP()
 
-    # def read_file(self, file_name='simvision_original.csv'):
     def read_file(self, file_name='simvision.csv'):
         ''' read file to array '''
+
+        if file_name == None:
+            return self.array
 
         with open(file_name, 'r') as f:
             for l in f:
@@ -46,6 +49,9 @@ class JTAG_Parser(object):
                     (SimTime, JTAG_TRST_N, JTAG_TCK, JTAG_TMS, JTAG_TDI, JTAG_TDO, SERV_RSTI_N)
                 )
         return self.array
+
+    def clear_buf(self):
+        self.array = []
 
     def get_vector(self, i):
         ''' '''
@@ -82,11 +88,19 @@ class JTAG_Parser(object):
 
 if __name__ == '__main__':
 
-    formatter = '%(levelname)-6s: %(lineno)-4d: %(message)s'
+    formatter = '%(levelname)-6s: %(lineno)-4d: %(message)s' # debug
     formatter = '%(message)s'
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=formatter)
     logger = logging.getLogger('main')
 
     player = JTAG_Parser()
-    player.read_file()
+    if len(sys.argv) > 1:
+        if (os.path.isfile(sys.argv[1])):
+            player.read_file(sys.argv[1])
+        else:
+            logger.info("file not found : ["+ sys.argv[1]+"]")
+    else:
+        player.read_file()
+
     player.play()
+    player.clear_buf()

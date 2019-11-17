@@ -66,8 +66,8 @@ class JTAG_TAP(object):
         self.data_tdi = ''
         self.data_tdo = ''
 
-        self.tdi_endian = 0
-        self.tdo_endian = 0
+        self.tdi_endian = 1
+        self.tdo_endian = 1
         self.display_all_state = 0
 
         self.log_prefix = ''
@@ -108,7 +108,7 @@ class JTAG_TAP(object):
             self.state = self.event_0[self.state]
         self.logging.debug(' ::]]' + str(self.state))
 
-        if _prev_state != self.state:
+        if (_prev_state != self.state) or (self.display_all_state):
             self.logging.info(self.log_prefix + str(self.get_state()))
 
     def next_state_vect(self, vect):
@@ -144,8 +144,9 @@ class JTAG_TAP(object):
         ''' SHIFT I/D display '''
 
         if self.state in ('Shift_IR', 'Shift_DR'):
-            self.data_tdi = str(tdi) + self.data_tdi
-            self.data_tdo = str(tdo) + self.data_tdo
+            self.data_tdi = (str(tdi) + self.data_tdi) if self.tdi_endian else (self.data_tdi + str(tdi))
+            self.data_tdo = (str(tdo) + self.data_tdo) if self.tdo_endian else (self.data_tdo + str(tdo))
+
         if self.state in ('Exit1_DR', 'Exit1_IR'):
             self.logging.info('TDI(' + str(len(self.data_tdi)) + '): ' + str(self.data_tdi))
             self.logging.info('TDO(' + str(len(self.data_tdo)) + '): ' + str(self.data_tdo))
