@@ -2,7 +2,7 @@ open CSV file and print JTAG-TAP state
 
 CSV collumn:         SimTime, JTAG_TRST_N, JTAG_TCK, JTAG_TMS, JTAG_TDI, JTAG_TDO, RSTI_N
 
-    SimTime - time (not used)
+    SimTime - time
     JTAG_TRST_N - TRST_N
     JTAG_TCK - TCK
     JTAG_TMS - TMS

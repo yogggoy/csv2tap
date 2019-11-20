@@ -27,50 +27,35 @@ class JTAG_TAP(object):
             15 : 'Exit2_IR',
             16 : 'Update_IR',
         }
-        self.event_0 = {
-            'Test_Logic_Reset' : 'Run_Test_IDLE',
-            'Run_Test_IDLE'    : 'Run_Test_IDLE',
-            'Select_DR_Scan'   : 'Capture_DR',
-            'Capture_DR'       : 'Shift_DR',
-            'Shift_DR'         : 'Shift_DR',
-            'Exit1_DR'         : 'Pause_DR',
-            'Pause_DR'         : 'Pause_DR',
-            'Exit2_DR'         : 'Shift_DR',
-            'Update_DR'        : 'Run_Test_IDLE',
-            'Select_IR_Scan'   : 'Capture_IR',
-            'Capture_IR'       : 'Shift_IR',
-            'Shift_IR'         : 'Shift_IR',
-            'Exit1_IR'         : 'Pause_IR',
-            'Pause_IR'         : 'Pause_IR',
-            'Exit2_IR'         : 'Shift_IR',
-            'Update_IR'        : 'Run_Test_IDLE',
+        # event - tms state         0                1
+        self.event = {
+            'Test_Logic_Reset' : ('Run_Test_IDLE', 'Test_Logic_Reset' ),
+            'Run_Test_IDLE'    : ('Run_Test_IDLE', 'Select_DR_Scan'   ),
+            'Select_DR_Scan'   : ('Capture_DR',    'Select_IR_Scan'   ),
+            'Capture_DR'       : ('Shift_DR',      'Exit1_DR'         ),
+            'Shift_DR'         : ('Shift_DR',      'Exit1_DR'         ),
+            'Exit1_DR'         : ('Pause_DR',      'Update_DR'        ),
+            'Pause_DR'         : ('Pause_DR',      'Exit2_DR'         ),
+            'Exit2_DR'         : ('Shift_DR',      'Update_DR'        ),
+            'Update_DR'        : ('Run_Test_IDLE', 'Select_DR_Scan'   ),
+            'Select_IR_Scan'   : ('Capture_IR',    'Test_Logic_Reset' ),
+            'Capture_IR'       : ('Shift_IR',      'Exit1_IR'         ),
+            'Shift_IR'         : ('Shift_IR',      'Exit1_IR'         ),
+            'Exit1_IR'         : ('Pause_IR',      'Update_IR'        ),
+            'Pause_IR'         : ('Pause_IR',      'Exit2_IR'         ),
+            'Exit2_IR'         : ('Shift_IR',      'Update_IR'        ),
+            'Update_IR'        : ('Run_Test_IDLE', 'Select_DR_Scan'   ),
         }
-        self.event_1 = {
-            'Test_Logic_Reset' : 'Test_Logic_Reset',
-            'Run_Test_IDLE'    : 'Select_DR_Scan',
-            'Select_DR_Scan'   : 'Select_IR_Scan',
-            'Capture_DR'       : 'Exit1_DR',
-            'Shift_DR'         : 'Exit1_DR',
-            'Exit1_DR'         : 'Update_DR',
-            'Pause_DR'         : 'Exit2_DR',
-            'Exit2_DR'         : 'Update_DR',
-            'Update_DR'        : 'Select_DR_Scan',
-            'Select_IR_Scan'   : 'Test_Logic_Reset',
-            'Capture_IR'       : 'Exit1_IR',
-            'Shift_IR'         : 'Exit1_IR',
-            'Exit1_IR'         : 'Update_IR',
-            'Pause_IR'         : 'Exit2_IR',
-            'Exit2_IR'         : 'Update_IR',
-            'Update_IR'        : 'Select_DR_Scan',
-        }
+
         self.data_tdi = ''
         self.data_tdo = ''
 
         self.tdi_endian = 1
         self.tdo_endian = 1
-        self.display_all_state = 0
+        self.display_all_state = 0 # print every TMS, include duplicate
+        self.display_only_data = 0 # print only data and I\D register state
 
-        self.log_prefix = ''
+        self.log_prefix = '' # prefix for output string
 
         self.state = self.TAP_STATE[init_state]
         self.logging.info(' . ' + str(self.get_state()))
@@ -94,26 +79,25 @@ class JTAG_TAP(object):
         '''
         self.display_all_state = var
 
+    def set_display_only_data(self, var):
+        ''' print only data and I\D register state
+            var - 1 - yes; 0 -no
+        '''
+        self.display_only_data = var
+
     def next_state(self, event):
         ''' display TAP state.
             event - TMS value
         '''
-        self.logging.debug(' ::[[' + str(self.state))
         _prev_state = self.state
-        if event:
-            self.logging.debug(' ::' + str(self.event_1[self.state]))
-            self.state = self.event_1[self.state]
-        else:
-            self.logging.debug(' ::' + str(self.event_0[self.state]))
-            self.state = self.event_0[self.state]
-        self.logging.debug(' ::]]' + str(self.state))
-
+        self.state = self.event[self.state][event]
         if (_prev_state != self.state) or (self.display_all_state):
             self.logging.info(self.log_prefix + str(self.get_state()))
 
     def next_state_vect(self, vect):
         ''' display TAP state and SHIFT I/D registers
         vect - {
+            'SimTime'  : SimTime,
             'JTAG_TRST_N' : JTAG_TRST_N,
             'JTAG_TCK' : JTAG_TCK,
             'JTAG_TMS' : JTAG_TMS,
@@ -122,36 +106,39 @@ class JTAG_TAP(object):
             'SERV_RSTI_N' : SERV_RSTI_N
         }
         '''
-
         _prev_state = self.state
-
         if vect['JTAG_TCK']:
             if not (vect['JTAG_TRST_N'] or vect['SERV_RSTI_N']):
                 self.TRST_state()
                 return
 
-            self.log_data_shift(vect['JTAG_TDI'], vect['JTAG_TDO'])
+            ret = self.log_data_shift(vect)
+            self.state = self.event[self.state][vect['JTAG_TMS']]
 
-            if vect['JTAG_TMS']:
-                self.state = self.event_1[self.state]
-            else:
-                self.state = self.event_0[self.state]
+            if (self.display_only_data) and (not ret):
+                return
 
             if (_prev_state != self.state) or (self.display_all_state):
                 self.logging.info(self.log_prefix + str(self.get_state()))
 
-    def log_data_shift(self, tdi, tdo):
+    def log_data_shift(self, vect):
         ''' SHIFT I/D display '''
+
+        tdi = vect['JTAG_TDI']
+        tdo = vect['JTAG_TDO']
 
         if self.state in ('Shift_IR', 'Shift_DR'):
             self.data_tdi = (str(tdi) + self.data_tdi) if self.tdi_endian else (self.data_tdi + str(tdi))
             self.data_tdo = (str(tdo) + self.data_tdo) if self.tdo_endian else (self.data_tdo + str(tdo))
 
         if self.state in ('Exit1_DR', 'Exit1_IR'):
+            self.logging.info('SimTime: '+vect['SimTime'])
             self.logging.info('TDI(' + str(len(self.data_tdi)) + '): ' + str(self.data_tdi))
             self.logging.info('TDO(' + str(len(self.data_tdo)) + '): ' + str(self.data_tdo))
             self.data_tdi = ''
             self.data_tdo = ''
+            return 1
+        return 0
 
     def get_state(self):
         ''' '''

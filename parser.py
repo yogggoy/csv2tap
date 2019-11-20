@@ -56,6 +56,7 @@ class JTAG_Parser(object):
     def get_vector(self, i):
         ''' '''
         vect = self.array[i]
+        SimTime     = vect[0]
         JTAG_TRST_N = 0 if (vect[1] in ('x', 'z', '0')) else 1
         JTAG_TCK    = 0 if (vect[2] in ('x', 'z', '0')) else 1
         JTAG_TMS    = 1 if (vect[3] in ('x', 'z', '1')) else 0
@@ -64,6 +65,7 @@ class JTAG_Parser(object):
         SERV_RSTI_N = 0 if (vect[6] in ('x', 'z', '0')) else 1
 
         return {
+            'SimTime'  : SimTime,
             'JTAG_TRST_N' : JTAG_TRST_N,
             'JTAG_TCK' : JTAG_TCK,
             'JTAG_TMS' : JTAG_TMS,
@@ -94,6 +96,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('main')
 
     player = JTAG_Parser()
+
     if len(sys.argv) > 1:
         if (os.path.isfile(sys.argv[1])):
             player.read_file(sys.argv[1])
